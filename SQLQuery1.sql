@@ -206,3 +206,139 @@ CREATE TABLE Tickets (
 ---------------------------
 GO
 --/////////////////////////////////////////////////////////////--
+
+--//////////////////////Database Population///////////////////////--
+--Country Data--
+INSERT INTO Country (CountryName) VALUES 
+('USA'), ('Mexico'), ('Canada'), ('Argentina'), ('France'), 
+('Brazil'), ('England'), ('Spain'), ('Portugal'), ('Morocco'), ('Japan');
+----------------------------
+
+--City Data--
+INSERT INTO Cities (CityName,CountryID) VALUES 
+('New York', 1), ('Los Angeles', 1), ('Miami', 1), ('Dallas', 1), ('Atlanta', 1),
+('Mexico City', 2), ('Guadalajara', 2), ('Monterrey', 2), 
+('Toronto', 3), ('Vancouver', 3);
+----------------------------
+
+--Stadium Data--
+INSERT INTO Stadiums (StadiumName,SeatingCapacity,CityID) VALUES 
+('MetLife Stadium', 82500, 1), ('SoFi Stadium', 70000, 2), 
+('Hard Rock Stadium', 64767, 3), ('AT&T Stadium', 80000, 4), ('Mercedes-Benz Stadium', 71000, 5),
+('Estadio Azteca', 87523, 6), ('Estadio Akron', 48071, 7), ('Estadio BBVA', 53500, 8), 
+('BMO Field', 30000, 9), ('BC Place', 54500, 10);
+-----------------------------
+
+--Category Data--
+INSERT INTO TicketCategories(CategoryName,Price,Description) VALUES 
+('VIP', 2500.00, 'Luxury Lounge'), ('Category 1', 850.00, 'Lower Tier'), 
+('Category 2', 450.00, 'Middle Tier'), ('Category 3', 225.00, 'Upper Tier');
+------------------------------  
+
+--Team Data--
+INSERT INTO NationalTeams(GroupLetter,CountryID) VALUES 
+('A', 1), ('A', 2), ('B', 3), ('B', 4), 
+('C', 5), ('C', 6), ('D', 7), ('D', 8), 
+('E', 9), ('E',11);
+-------------------------------
+
+--Player Data--
+INSERT INTO Players(FirstName, LastName, Age, TeamNumber, Position, TeamID) VALUES 
+(N'Christian', N'Pulisic', 27, 10, 'Forward', 1), (N'Santiago', N'Giménez', 24, 9, 'Forward', 2),
+(N'Alphonso', N'Davies', 25, 19, 'Defender', 3), (N'Lionel', N'Messi', 38, 10, 'Forward', 4),
+(N'Kylian', N'Mbappé', 27, 10, 'Forward', 5), (N'Vinícius', N'Júnior', 25, 7, 'Forward', 6),
+(N'Jude', N'Bellingham', 22, 10, 'Midfield', 7), (N'Lamine', N'Yamal', 18, 19, 'Forward', 8),
+(N'Cristiano', N'Ronaldo', 41, 7, 'Forward', 9), (N'Takefusa', N'Kubo', 24, 20, 'Midfield', 10);
+-------------------------------
+
+--Staff Data--
+INSERT INTO TeamStaff(FirstName, LastName, Role, TeamID) VALUES 
+(N'Mauricio', N'Pochettino', 'Head Coach', 1), (N'Javier', N'Aguirre', 'Head Coach', 2),
+(N'Jesse', N'Marsch', 'Head Coach', 3), (N'Lionel', N'Scaloni', 'Head Coach', 4),
+(N'Didier', N'Deschamps', 'Head Coach', 5), (N'Dorival', N'Júnior', 'Head Coach', 6),
+(N'Thomas', N'Tuchel', 'Head Coach', 7), (N'Luis', N'de la Fuente', 'Head Coach', 8),
+(N'Roberto', N'Martínez', 'Head Coach', 9), (N'Hajime', N'Moriyasu', 'Head Coach', 10);
+-------------------------------
+
+--Official Data--
+INSERT INTO Officials(FirstName, LastName, CountryID) VALUES 
+(N'Michael', N'Oliver', 7), (N'César', N'Ramos', 2), (N'Iván', N'Barton', 2),
+(N'Szymon', N'Marciniak', 8), (N'Daniele', N'Orsato', 9), (N'Wilton', N'Sampaio', 6),
+(N'Jesus', N'Valenzuela', 4), (N'Anthony', N'Taylor', 7), (N'Danny', N'Makkelie', 5), (N'Yoshimi', N'Yamashita', 11);
+-------------------------------
+
+--Match Data--
+INSERT INTO Matches (StadiumID, Team1ID, Team2ID, MatchDate, TournamentStage) VALUES 
+(6, 2, 1, '2026-06-11', 'Opening'), (9, 3, 4, '2026-06-12', 'Group'),
+(1, 1, 5, '2026-06-13', 'Group'), (2, 6, 7, '2026-06-14', 'Group'),
+(3, 8, 9, '2026-06-15', 'Group'), (4, 10, 2, '2026-06-16', 'Group'),
+(5, 4, 6, '2026-06-17', 'Group'), (7, 5, 8, '2026-06-18', 'Group'),
+(8, 9, 3, '2026-06-19', 'Group'), (10, 7, 10, '2026-06-20', 'Group');
+---------------------------------
+
+--Match Officials Data--
+INSERT INTO MatchOfficials(OfficialID, MatchID, MatchRole) VALUES 
+(1, 1, 'Main Referee'), (2, 1, 'VAR'), (3, 2, 'Main Referee'), (4, 3, 'Main Referee'),
+(5, 4, 'Main Referee'), (6, 5, 'Main Referee'), (7, 6, 'Main Referee'), (8, 7, 'Main Referee'),
+(9, 8, 'Main Referee'), (10, 9, 'Main Referee'), (1, 10, 'Main Referee');
+---------------------------------
+
+--Event Data--
+INSERT INTO MatchEvents (PlayerID, MatchID, EventType, EventMinute, EventDescription) VALUES 
+(4, 2, 'Goal', 23, 'Header from corner'), (5, 3, 'Goal', 45, 'Solo run'),
+(1, 1, 'Yellow Card', 12, 'Tactical foul'), (9, 5, 'Goal', 88, 'Penalty'),
+(6, 4, 'Goal', 10, 'Long range shot'), (2, 6, 'Red Card', 75, 'Dangerous tackle'),
+(7, 4, 'Goal', 55, 'Tap in'), (8, 8, 'Goal', 30, 'Assist by midfielder'),
+(10, 10, 'Goal', 92, 'Counter attack'), (3, 9, 'Yellow Card', 60, 'Handball');
+---------------------------------
+
+--Statistic Data--
+INSERT INTO TeamStatistics(TeamID, MatchID, Possession, TotalPasses, Shots, ShotsOnTarget) VALUES 
+(2, 1, 52.40, 480, 12, 5), (1, 1, 47.60, 410, 8, 3),
+(3, 2, 40.25, 300, 5, 2), (4, 2, 59.75, 620, 18, 9),
+(5, 3, 55.00, 510, 14, 6), (1, 3, 45.00, 390, 7, 2),
+(6, 4, 51.20, 470, 11, 4), (7, 4, 48.80, 430, 9, 3),
+(8, 5, 60.10, 650, 20, 10), (9, 5, 39.90, 280, 4, 1);
+-----------------------------------
+
+--Fan Data--
+INSERT INTO Fans (FirstName, LastName, Email, IdentificationNumber) VALUES 
+(N'Alice', N'Green', 'alice@email.com', 'ID1001'), (N'Bob', N'Brown', 'bob@email.com', 'ID1002'),
+(N'Charlie', N'Davis', 'charlie@email.com', 'ID1003'), (N'Diana', N'Evans', 'diana@email.com', 'ID1004'),
+(N'Ethan', N'Fox', 'ethan@email.com', 'ID1005'), (N'Fiona', N'Gomez', 'fiona@email.com', 'ID1006'),
+(N'George', N'Hill', 'george@email.com', 'ID1007'), (N'Hannah', N'Ivers', 'hannah@email.com', 'ID1008'),
+(N'Ian', N'Jones', 'ian@email.com', 'ID1009'), (N'Julia', N'King', 'julia@email.com', 'ID1010');
+--------------------------------
+
+--Booking Data--
+INSERT INTO Bookings (FanID, MatchID, BookingStatus) VALUES 
+(1, 1,'Paid'), (2, 1,'Paid'), (3, 2,'Paid'), (4, 3,'Paid'),
+(5, 4,'Paid'), (6, 5,'Paid'), (7, 6,'Paid'), (8, 7,'Paid'),
+(9, 8,'Paid'), (10, 9,'Paid');
+----------------------------------
+
+--Ticket Data--
+INSERT INTO Tickets (BookingID, TicketCode, PriceWhenPurchased, SeatSection, SeatNumber, SeatRow, CategoryID) VALUES 
+(1, 'TC-001', 2500.00, 'A1', 10, '1', 1), (2, 'TC-002', 850.00, 'B2', 15, '5', 2),
+(3, 'TC-003', 450.00, 'C3', 20, '10', 3), (4, 'TC-004', 2500.00, 'A1', 11, '1', 1),
+(5, 'TC-005', 850.00, 'B2', 16, '5', 2), (6, 'TC-006', 450.00, 'C3', 21, '10', 3),
+(7, 'TC-007', 2500.00, 'A1', 12, '1', 1), (8, 'TC-008', 850.00, 'B2', 17, '5', 2),
+(9, 'TC-009', 450.00, 'C3', 22, '10', 3), (10, 'TC-010', 2500.00, 'A1', 13, '1', 1);
+-----------------------------------
+
+--Admin Data--
+INSERT INTO Admins (UserName, FirstName, Surname, PasswordHash, AdminRole) VALUES 
+('superadmin', N'Sarah', N'Miller', 0x123456, 'SuperUser'),
+('ticket_mgr', N'Tom', N'Wilson', 0xABCDEF, 'Sales'),
+('match_coord', N'Anna', N'Lee', 0x987654, 'Operator');
+-------------------------------------
+
+--Admin Log Data--
+INSERT INTO AdminLogs(AdminID, ActionType, AffectedTable, OldValue) VALUES 
+(1, 'INSERT', 'Stadium', 'New Venue Added'), (1, 'UPDATE', 'Category', 'Price Increase'),
+(2, 'INSERT', 'Booking', 'Bulk Ticket Sale'), (3, 'UPDATE', 'Match', 'Time Change'),
+(1, 'DELETE', 'Staff', 'Retired Coach'), (2, 'INSERT', 'Fan', 'New Registry'),
+(3, 'UPDATE', 'Official', 'Assigned Match'), (1, 'INSERT', 'Player', 'Squad Update'),
+(2, 'UPDATE', 'Ticket', 'Seat Reassignment'), (3, 'INSERT', 'Event', 'Goal Recorded');
+-------------------------------------
+--/////////////////////////////////////////////////////////////--
