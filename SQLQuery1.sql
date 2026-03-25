@@ -1,8 +1,6 @@
 /* -------------------------------------------------------------------------
 FIFA WORLD CUP TOURNAMENT DATABASE SCRIPT
 
-NOTE:Change your path for "\TournData1.mdf" and "\Tournlog1.ldf" at FileName to your
-     file path this is saved on.
 ----------------------------------------------------------------------------
 */
 
@@ -348,7 +346,7 @@ USE FIFATournamentDB
 GO
 
 -------TRIGGERS
-----------------------------------------------------------
+
 
 --TRIGGER 1: Audit trigger on matches table
 -----Logs any UPDATE action on the matches table
@@ -483,7 +481,8 @@ GO
 
 -- CURSOR 2: Calculate and display total revenue per match which iterates through matches and sums ticket revenue for each
 
-DECLARE @CurMatchID INT, @MatchLabel VARCHAR(200), @Revenue DECIMAL(10,2); --declaration of all cursors
+--declaration of all cursors
+DECLARE @CurMatchID INT, @MatchLabel VARCHAR(200), @Revenue DECIMAL(10,2); 
  
 DECLARE RevenueCursor CURSOR FOR
     SELECT m.MatchID,
@@ -499,8 +498,9 @@ FETCH NEXT FROM RevenueCursor INTO @CurMatchID, @MatchLabel;
  
 PRINT '			TICKET REVENUE PER MATCH			';
 PRINT '';
- 
-WHILE @@FETCH_STATUS = 0					-- Calculate total ticket revenue for the current match
+
+-- Calculate total ticket revenue for the current match
+WHILE @@FETCH_STATUS = 0					
 BEGIN
     
     SELECT @Revenue = ISNULL(SUM(t.PriceWhenPurchased), 0)
@@ -522,14 +522,15 @@ GO
 BEGIN TRY
     BEGIN TRANSACTION BookTicketTransaction;
  
-        
-INSERT INTO Bookings (FanID, MatchID, BookingStatus)			--  Create the booking
+--  Create the booking        
+INSERT INTO Bookings (FanID, MatchID, BookingStatus)			
 VALUES (1, 5, 'Paid');
+
+-- Capture the new BookingID
+DECLARE @NewBookingID INT = SCOPE_IDENTITY();			
  
-DECLARE @NewBookingID INT = SCOPE_IDENTITY();			-- Capture the new BookingID
- 
-        
-INSERT INTO Tickets (BookingID, TicketCode, PriceWhenPurchased, SeatSection, SeatNumber, SeatRow, CategoryID)		--  Create the ticket linked to the booking
+--  Create the ticket linked to the booking      
+INSERT INTO Tickets (BookingID, TicketCode, PriceWhenPurchased, SeatSection, SeatNumber, SeatRow, CategoryID)		
 VALUES (@NewBookingID, 'TC-011', 850.00, 'B2', 18, '5', 2);
  
     COMMIT TRANSACTION BookTicketTransaction;
