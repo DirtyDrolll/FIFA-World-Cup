@@ -1,8 +1,6 @@
 /* -------------------------------------------------------------------------
 FIFA WORLD CUP TOURNAMENT DATABASE SCRIPT
 
-NOTE:Change your path for "\TournData1.mdf" and "\Tournlog1.ldf" at FileName to your
-     file path this is saved on.
 ----------------------------------------------------------------------------
 */
 
@@ -342,3 +340,204 @@ INSERT INTO AdminLogs(AdminID, ActionType, AffectedTable, OldValue) VALUES
 (2, 'UPDATE', 'Ticket', 'Seat Reassignment'), (3, 'INSERT', 'Event', 'Goal Recorded');
 -------------------------------------
 --/////////////////////////////////////////////////////////////--
+
+
+USE FIFATournamentDB
+GO
+
+-------TRIGGERS
+
+
+--TRIGGER 1: Audit trigger on matches table
+-----Logs any UPDATE action on the matches table
+
+CREATE TRIGGER trg_AuditMatchUpdate
+ON [dbo].[Matches]
+AFTER UPDATE 
+AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @OldScore VARCHAR(MAX)
+	DECLARE @MatchID INT
+
+SELECT @MatchID = d.MatchID,
+           @OldScore = 'Team1Score: ' + CAST(d.Team1Score AS VARCHAR) 
+                     + ' Team2Score: ' + CAST(d.Team2Score AS VARCHAR)
+					 FROM deleted d;
+
+/*This column for will trigger updates record into the AdminLogs table*/
+
+INSERT INTO AdminLogs (AdminID, ActionType, AffectedTable, OldValue)
+    VALUES (1, 'UPDATE', 'Matches', 'MatchID: ' + CAST(@MatchID AS VARCHAR) + '  Old Scores - ' + @OldScore);
+END
+GO
+
+--Verification of TRIGGER 1: 
+
+UPDATE Matches SET Team1Score = 2, Team2Score = 1 WHERE MatchID = 1;
+SELECT TOP 1 * FROM AdminLogs ORDER BY LogID DESC;
+GO
+
+/*TRIGGER 2: Prevent booking a match that has already been played and Blocks INSERT command on Bookings if the match date is in the past*/
+
+CREATE TRIGGER trg_PreventPastMatchBooking
+ON Bookings
+INSTEAD OF INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+ 
+    -- Check if any inserted booking references a match with a past date
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        INNER JOIN Matches m ON i.MatchID = m.MatchID
+        WHERE m.MatchDate < GETDATE()
+    )
+    BEGIN
+        RAISERROR('Cannot book tickets for a match that has already been played.', 16, 1); -- used to generate a custom error message in SQL Server.
+        RETURN;
+    END;
+ 
+/* in the instance the match is in the future, allow the insert update: */
+
+    INSERT INTO Bookings (FanID, MatchID, BookingDate, BookingStatus)
+    SELECT FanID, MatchID, BookingDate, BookingStatus
+    FROM inserted;
+END;
+GO
+
+--TRIGGER 3
+--Auto-log new player registrations into AdminLog and fires after a new player is inserted into the Players table
+
+CREATE TRIGGER trg_LogNewPlayer
+ON Players
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+ 
+    DECLARE @PlayerInfo VARCHAR(MAX);
+ 
+    -- Build a descriptive string of the new player
+    SELECT @PlayerInfo = 'New Player: ' + i.FirstName + ' ' + i.LastName 
+                       + ' Team: ' + CAST(i.TeamID AS VARCHAR)
+                       + '  Position: ' + ISNULL(i.Position, 'N/A')
+    FROM inserted i;
+ 
+    -- Log the action
+    INSERT INTO AdminLogs (AdminID, ActionType, AffectedTable, OldValue)
+    VALUES (1, 'INSERT', 'Players', @PlayerInfo);
+END;
+GO
+
+/*verification of Trigger 3
+INSERT INTO Players (FirstName, LastName, Age, TeamNumber, Position, TeamID)
+VALUES (N'Demo', N'Player', 25, 99, 'Midfield', 1);
+SELECT TOP 1 * FROM AdminLogs ORDER BY LogID DESC;
+
+DELETE FROM Players WHERE FirstName = 'Test' AND LastName = 'Player';
+
+*/
+
+GO
+
+---------CURSORS-------------------
+
+--CURSOR 1: Generate a match summary report
+-- Iterate through all matches and prints team names with scores
+
+DECLARE @MatchID INT, @Team1ClubName NVARCHAR(100), @Team2ClubName NVARCHAR(100),@Team1Score INT, @Team2Score INT, @MatchDate DATETIME, @Stage VARCHAR(50);
+ 
+DECLARE MatchCursor CURSOR FOR
+    SELECT m.MatchID, c1.CountryName, c2.CountryName, 
+           m.Team1Score, m.Team2Score, m.MatchDate, m.TournamentStage
+    FROM Matches m
+    INNER JOIN NationalTeams nt1 ON m.Team1ID = nt1.TeamID
+    INNER JOIN Country c1 ON nt1.CountryID = c1.CountryID
+    INNER JOIN NationalTeams nt2 ON m.Team2ID = nt2.TeamID
+    INNER JOIN Country c2 ON nt2.CountryID = c2.CountryID;
+ 
+OPEN MatchCursor;
+FETCH NEXT FROM MatchCursor INTO @MatchID, @Team1ClubName, @Team2ClubName, @Team1Score, @Team2Score, @MatchDate, @Stage;
+ 
+PRINT '             MATCH SUMMARY REPORT                ';
+PRINT '';
+ 
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    PRINT 'Match ' + CAST(@MatchID AS VARCHAR) + ' | ' + @Stage 
+        + ' | ' + CONVERT(VARCHAR, @MatchDate, 23)
+        + ' | ' + @Team1ClubName + ' ' + CAST(@Team1Score AS VARCHAR) 
+        + ' - ' + CAST(@Team2Score AS VARCHAR) + ' ' + @Team2ClubName;
+ 
+    FETCH NEXT FROM MatchCursor INTO @MatchID, @Team1ClubName, @Team2ClubName, 
+                                      @Team1Score, @Team2Score, @MatchDate, @Stage;
+END;
+ 
+CLOSE MatchCursor;
+DEALLOCATE MatchCursor;
+GO
+
+-- CURSOR 2: Calculate and display total revenue per match which iterates through matches and sums ticket revenue for each
+
+--declaration of all cursors
+DECLARE @CurMatchID INT, @MatchLabel VARCHAR(200), @Revenue DECIMAL(10,2); 
+ 
+DECLARE RevenueCursor CURSOR FOR
+    SELECT m.MatchID,
+           c1.CountryName + ' vs ' + c2.CountryName AS MatchLabel
+    FROM Matches m
+    INNER JOIN NationalTeams nt1 ON m.Team1ID = nt1.TeamID
+    INNER JOIN Country c1 ON nt1.CountryID = c1.CountryID
+    INNER JOIN NationalTeams nt2 ON m.Team2ID = nt2.TeamID
+    INNER JOIN Country c2 ON nt2.CountryID = c2.CountryID;
+ 
+OPEN RevenueCursor;
+FETCH NEXT FROM RevenueCursor INTO @CurMatchID, @MatchLabel;
+ 
+PRINT '			TICKET REVENUE PER MATCH			';
+PRINT '';
+
+-- Calculate total ticket revenue for the current match
+WHILE @@FETCH_STATUS = 0					
+BEGIN
+    
+    SELECT @Revenue = ISNULL(SUM(t.PriceWhenPurchased), 0)
+    FROM Tickets t
+    INNER JOIN Bookings b ON t.BookingID = b.BookingID
+    WHERE b.MatchID = @CurMatchID;
+ 
+    PRINT @MatchLabel + ' | Revenue: R' + CAST(@Revenue AS VARCHAR);
+ 
+    FETCH NEXT FROM RevenueCursor INTO @CurMatchID, @MatchLabel;
+END;
+ 
+CLOSE RevenueCursor;
+DEALLOCATE RevenueCursor;
+GO
+ 
+ /*TRANSACTION 1: Book a ticket for a fan in multi-tables. Inserts into Bookings and Tickets atomically and if any step fails, the entire operation is rolled back*/
+
+BEGIN TRY
+    BEGIN TRANSACTION BookTicketTransaction;
+ 
+--  Create the booking        
+INSERT INTO Bookings (FanID, MatchID, BookingStatus)			
+VALUES (1, 5, 'Paid');
+
+-- Capture the new BookingID
+DECLARE @NewBookingID INT = SCOPE_IDENTITY();			
+ 
+--  Create the ticket linked to the booking      
+INSERT INTO Tickets (BookingID, TicketCode, PriceWhenPurchased, SeatSection, SeatNumber, SeatRow, CategoryID)		
+VALUES (@NewBookingID, 'TC-011', 850.00, 'B2', 18, '5', 2);
+ 
+    COMMIT TRANSACTION BookTicketTransaction;
+    PRINT 'Transaction 1 successful: Booking and ticket created successfully.';
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION BookTicketTransaction;
+    PRINT 'Transaction 1 FAILED: ' + ERROR_MESSAGE();
+END CATCH;
+GO
