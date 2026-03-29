@@ -1,7 +1,6 @@
 -- ============================================================
 -- FIFA World Cup 2026 - Database Queries & Programmability
--- Subject:    Database Development 271/281
--- Assessment: Project
+-- Subject:    Database Development 281
 -- ============================================================
 -- Contents:
 --   Section 1  : Joins
@@ -23,7 +22,7 @@ GO
 -- ============================================================
 
 -- Section 1: Joins
--- Demonstrates INNER JOIN, LEFT JOIN, and multi-table relationships
+-- INNER JOIN, LEFT JOIN, and multi-table relationships
 
 -- 1.1 Player roster with team group assignments
 -- Joins Players to NationalTeams via TeamID foreign key
@@ -39,7 +38,7 @@ INNER JOIN NationalTeams nt ON p.TeamID = nt.TeamID;
 GO
 
 -- 1.2 Complete match schedule with venue details
--- Self-join on NationalTeams for Team1/Team2; chains to Stadiums, Cities, Country
+-- Self-join on NationalTeams for Team1 Team2 chains to Stadiums, Cities, Country
 SELECT 
     m.MatchID,
     t1.GroupLetter  AS Team1Group,
@@ -137,7 +136,6 @@ GO
 
 -- ============================================================
 -- Section 2: Subqueries
--- Nested SELECT statements for filtering and derived calculations
 -- ============================================================
 
 -- 2.1 Active fans with existing bookings
@@ -148,13 +146,14 @@ SELECT
     LastName,
     Email
 FROM Fans
-WHERE FanID IN (
+WHERE FanID IN
+(
     SELECT DISTINCT FanID 
     FROM Bookings
 );
 GO
 
--- 2.2 Matches scheduled in above-average capacity venues
+-- 2.2 Matches scheduled in above average capacity venues
 -- Nested subquery calculates AVG(SeatingCapacity) for comparison
 SELECT 
     MatchID,
@@ -162,7 +161,8 @@ SELECT
     TournamentStage,
     StadiumAttendance
 FROM Matches
-WHERE StadiumID IN (
+WHERE StadiumID IN 
+ (
     SELECT StadiumID 
     FROM Stadiums 
     WHERE SeatingCapacity > (
@@ -171,7 +171,7 @@ WHERE StadiumID IN (
 );
 GO
 
--- 2.3 Players with goal-scoring records
+-- 2.3 Players with goal scoring records
 -- EXISTS subquery identifies players with 'Goal' event types
 SELECT 
     PlayerID,
@@ -187,12 +187,13 @@ WHERE PlayerID IN (
 GO
 
 -- 2.4 Teams awaiting their first match
--- NOT IN with UNION excludes teams appearing in either Team1ID or Team2ID
+-- NOT IN with UNION excludes teams appearing in either Team 1ID or Team 2ID
 SELECT 
     TeamID,
     GroupLetter
 FROM NationalTeams
-WHERE TeamID NOT IN (
+WHERE TeamID NOT IN
+(
     SELECT Team1ID FROM Matches
     UNION
     SELECT Team2ID FROM Matches
@@ -200,7 +201,7 @@ WHERE TeamID NOT IN (
 GO
 
 -- 2.5 Correlated subquery: Most recent booking per fan
--- Inner query references outer table (f.FanID) for row-specific calculation
+-- Inner query references outer table (f.FanID) for row specific calculation
 SELECT 
     f.FanID,
     f.FirstName,
@@ -221,7 +222,8 @@ SELECT
     TournamentStage,
     StadiumAttendance
 FROM Matches
-WHERE StadiumAttendance > (
+WHERE StadiumAttendance > 
+(
     SELECT AVG(StadiumAttendance) 
     FROM Matches 
     WHERE StadiumAttendance IS NOT NULL
@@ -230,12 +232,12 @@ GO
 
 -- ============================================================
 -- Section 3: CTEs (Common Table Expressions)
--- Named temporary result sets defined via WITH clause for query modularity
 -- ============================================================
 
 -- 3.1 Goal scorers ranked by team
--- CTE aggregates goals per player; outer query joins dimensional data
-WITH TeamGoalScorers AS (
+-- CTE aggregates goals per player, outer query joins dimensional data
+WITH TeamGoalScorers AS
+ (
     SELECT 
         p.TeamID,
         p.PlayerID,
@@ -259,7 +261,8 @@ GO
 
 -- 3.2 Match popularity ranking by booking volume
 -- DENSE_RANK handles ties without gaps in ranking sequence
-WITH BookingsPerMatch AS (
+WITH BookingsPerMatch AS 
+(
     SELECT 
         MatchID,
         COUNT(BookingID) AS TotalBookings
@@ -281,7 +284,8 @@ GO
 
 -- 3.3 Player disciplinary records
 -- Conditional aggregation via CASE expressions within COUNT
-WITH DisciplineRecord AS (
+WITH DisciplineRecord AS
+ (
     SELECT 
         PlayerID,
         COUNT(CASE WHEN EventType = 'Yellow Card' THEN 1 END) AS TotalYellowCards,
@@ -328,11 +332,10 @@ GO
 
 -- ============================================================
 -- Section 4: CASE Statements
--- Conditional logic for result classification and data transformation
 -- ============================================================
 
 -- 4.1 Match outcome determination
--- Evaluates score differentials to classify results; ELSE handles NULL
+-- Evaluates score differentials to classify results, ELSE handles NULL
 SELECT 
     m.MatchID,
     m.MatchDate,
@@ -425,8 +428,6 @@ GO
 
 -- ============================================================
 -- Section 5: Stored Procedures
--- Parameterized, reusable database objects encapsulating business logic
--- SET NOCOUNT ON suppresses row count messages
 -- ============================================================
 
 -- 5.1 Match retrieval by tournament stage
@@ -507,11 +508,10 @@ GO
 
 -- ============================================================
 -- Section 6: Functions
--- Reusable calculation logic: Scalar (single value) and Table-valued
 -- ============================================================
 
 -- 6.1 Scalar function: Player goal tally
--- Returns COUNT of 'Goal' events per PlayerID; ISNULL handles NULL
+-- Returns COUNT of 'Goal' events per PlayerID, ISNULL handles NULL
 CREATE OR ALTER FUNCTION fn_GetPlayerGoalCount
 (
     @PlayerID INT
@@ -583,7 +583,6 @@ GO
 
 -- ============================================================
 -- Section 7: Views
--- Virtual tables providing abstraction and simplified data access
 -- ============================================================
 
 -- 7.1 Comprehensive match schedule view
@@ -651,8 +650,6 @@ GO
 
 -- ============================================================
 -- Section 8: Triggers
--- DML event handlers (INSERT/UPDATE/DELETE) for automated enforcement
--- Uses inserted/deleted pseudo-tables for row comparison
 -- ============================================================
 
 -- 8.1 Audit logging for match deletions
@@ -721,9 +718,6 @@ GO
 
 -- ============================================================
 -- Section 9: Cursors
--- Row-by-row processing for iterative operations
--- Lifecycle: DECLARE -> OPEN -> FETCH -> WHILE -> CLOSE -> DEALLOCATE
--- Note: Set-based operations preferred for performance; cursors for procedural logic
 -- ============================================================
 
 -- 9.1 Match summary report generation
@@ -799,8 +793,6 @@ GO
 
 -- ============================================================
 -- Section 10: Transactions
--- ACID compliance via BEGIN TRANSACTION / COMMIT / ROLLBACK
--- TRY/CATCH blocks ensure atomicity and error handling
 -- ============================================================
 
 -- 10.1 Atomic booking and ticket creation
@@ -871,8 +863,6 @@ GO
 
 -- ============================================================
 -- Section 11: Security - Authentication & Authorization
--- Principals: Logins (server-level) and Users (database-level)
--- Securables: GRANT (allow), DENY (override deny), REVOKE (remove)
 -- ============================================================
 
 -- 11.1 SQL Server authentication login creation
@@ -919,8 +909,6 @@ GO
 
 -- ============================================================
 -- Section 12: Security - Encryption
--- Hierarchy: Master Key -> Certificate -> Symmetric Key
--- AES-256 encryption for sensitive data (IdentificationNumber)
 -- ============================================================
 
 -- 12.1 Database Master Key creation
