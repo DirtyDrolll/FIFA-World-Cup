@@ -3,10 +3,10 @@
 -- Subject:    Database Development 271/281
 -- Assessment: Project
 -- ============================================================
--- What we're covering in this script:
+-- Contents:
 --   Section 1  : Joins
 --   Section 2  : Subqueries
---   Section 3  : CTEs
+--   Section 3  : CTEs (Common Table Expressions)
 --   Section 4  : CASE Statements
 --   Section 5  : Stored Procedures
 --   Section 6  : Functions
@@ -14,24 +14,19 @@
 --   Section 8  : Triggers
 --   Section 9  : Cursors
 --   Section 10 : Transactions
---   Section 11 : Security - Authentication
+--   Section 11 : Security - Authentication & Authorization
 --   Section 12 : Security - Encryption
 -- ============================================================
 
 USE FIFA_WorldCup2026;
 GO
-
--- ============================================================
--- SECTION 1: JOINS
--- Joins let you combine data from multiple tables. Think of it
--- like matching puzzle pieces - you connect tables where their
--- columns match up. INNER JOIN only shows matching rows,
--- LEFT JOIN shows everything from the left table even if there's
--- no match on the right (fills with NULLs).
 -- ============================================================
 
--- 1.1 Show all players with their team's group letter
---     Links Players to NationalTeams using TeamID
+-- Section 1: Joins
+-- Demonstrates INNER JOIN, LEFT JOIN, and multi-table relationships
+
+-- 1.1 Player roster with team group assignments
+-- Joins Players to NationalTeams via TeamID foreign key
 SELECT 
     p.PlayerID,
     p.FirstName,
@@ -43,10 +38,8 @@ FROM Players p
 INNER JOIN NationalTeams nt ON p.TeamID = nt.TeamID;
 GO
 
--- 1.2 Complete match schedule - who plays who, where, and when
---     We join NationalTeams twice (as t1 and t2) because each match
---     has two teams. Then we chain through Stadiums -> Cities -> Country
---     to get all the location info
+-- 1.2 Complete match schedule with venue details
+-- Self-join on NationalTeams for Team1/Team2; chains to Stadiums, Cities, Country
 SELECT 
     m.MatchID,
     t1.GroupLetter  AS Team1Group,
@@ -66,10 +59,8 @@ INNER JOIN Cities c         ON s.CityID    = c.CityID
 INNER JOIN Country co       ON c.CountryID = co.CountryID;
 GO
 
--- 1.3 All fans and their bookings (if they have any)
---     LEFT JOIN here means fans without bookings still show up
---     with NULL in the booking columns - useful for seeing who
---     registered but hasn't bought tickets yet
+-- 1.3 Fan registration status with booking history
+-- LEFT JOIN ensures all fans appear, including those without bookings
 SELECT 
     f.FanID,
     f.FirstName,
@@ -82,10 +73,8 @@ FROM Fans f
 LEFT JOIN Bookings b ON f.FanID = b.FanID;
 GO
 
--- 1.4 Matches with their events (goals, cards, etc.)
---     LEFT JOIN because matches that haven't been played yet won't
---     have any events. Also some events like "Half Time" don't link
---     to a specific player, so we LEFT JOIN Players too
+-- 1.4 Match events with player attribution
+-- LEFT JOINs handle matches without events and events without player assignments
 SELECT 
     m.MatchID,
     m.MatchDate,
@@ -99,10 +88,8 @@ LEFT JOIN MatchEvents me ON m.MatchID   = me.MatchID
 LEFT JOIN Players p      ON me.PlayerID = p.PlayerID;
 GO
 
--- 1.5 Full ticket details with the fan who bought them
---     Following the chain: Tickets -> Bookings -> Fans
---     INNER JOIN is fine here because every ticket must have
---     a booking and every booking must have a fan
+-- 1.5 Ticket details with purchaser information
+-- Traverses Tickets -> Bookings -> Fans relationship chain
 SELECT 
     t.TicketID,
     t.TicketCode,
@@ -119,9 +106,8 @@ INNER JOIN Bookings b ON t.BookingID = b.BookingID
 INNER JOIN Fans f     ON b.FanID     = f.FanID;
 GO
 
--- 1.6 Which officials are assigned to which matches
---     MatchOfficials is a junction table that links refs to matches
---     We also grab the official's nationality from Country
+-- 1.6 Match official assignments with nationality
+-- Joins junction table MatchOfficials to Matches, Officials, and Country
 SELECT 
     m.MatchID,
     m.MatchDate,
@@ -135,8 +121,8 @@ INNER JOIN Officials o ON mo.OfficialID = o.OfficialID
 INNER JOIN Country c   ON o.CountryID   = c.CountryID;
 GO
 
--- 1.7 Coaching staff with their teams
---     Shows which coaches work for which country
+-- 1.7 Coaching staff directory by team
+-- Links CoachingStaff to NationalTeams and Country for complete roster
 SELECT 
     cs.StaffID,
     cs.StaffName,
@@ -150,15 +136,12 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID;
 GO
 
 -- ============================================================
--- SECTION 2: SUBQUERIES
--- A query inside another query. You can use them in WHERE, FROM,
--- or SELECT clauses. They're great for filtering based on
--- calculated results or other table data.
+-- Section 2: Subqueries
+-- Nested SELECT statements for filtering and derived calculations
 -- ============================================================
 
--- 2.1 Only fans who've actually made a booking
---     The inner query gets all FanIDs that have bookings,
---     then the outer query filters to just those fans
+-- 2.1 Active fans with existing bookings
+-- IN clause filters Fans table against derived list of booking holders
 SELECT 
     FanID,
     FirstName,
@@ -171,10 +154,8 @@ WHERE FanID IN (
 );
 GO
 
--- 2.2 Matches in above-average capacity stadiums
---     Inner query calculates average stadium size,
---     middle query finds big stadiums,
---     outer query gets matches in those stadiums
+-- 2.2 Matches scheduled in above-average capacity venues
+-- Nested subquery calculates AVG(SeatingCapacity) for comparison
 SELECT 
     MatchID,
     MatchDate,
@@ -190,8 +171,8 @@ WHERE StadiumID IN (
 );
 GO
 
--- 2.3 Players who've scored at least one goal
---     Checks MatchEvents for goal records and filters players to just those
+-- 2.3 Players with goal-scoring records
+-- EXISTS subquery identifies players with 'Goal' event types
 SELECT 
     PlayerID,
     FirstName,
@@ -205,10 +186,8 @@ WHERE PlayerID IN (
 );
 GO
 
--- 2.4 Teams that haven't played yet
---     UNION combines teams from both Team1ID and Team2ID columns
---     so we catch teams that played in either position.
---     NOT IN then excludes all those teams, leaving only unplayed teams
+-- 2.4 Teams awaiting their first match
+-- NOT IN with UNION excludes teams appearing in either Team1ID or Team2ID
 SELECT 
     TeamID,
     GroupLetter
@@ -220,9 +199,8 @@ WHERE TeamID NOT IN (
 );
 GO
 
--- 2.5 Each fan's most recent booking date
---     This is a "correlated" subquery because the inner query references
---     the outer query (f.FanID). It runs once per fan row
+-- 2.5 Correlated subquery: Most recent booking per fan
+-- Inner query references outer table (f.FanID) for row-specific calculation
 SELECT 
     f.FanID,
     f.FirstName,
@@ -235,9 +213,8 @@ SELECT
 FROM Fans f;
 GO
 
--- 2.6 Matches with above-average attendance
---     Subquery calculates the average (ignoring unplayed matches),
---     then we filter to matches above that average
+-- 2.6 Matches exceeding average attendance
+-- Scalar subquery computes average excluding NULL (unplayed) matches
 SELECT 
     MatchID,
     MatchDate,
@@ -252,21 +229,18 @@ WHERE StadiumAttendance > (
 GO
 
 -- ============================================================
--- SECTION 3: CTEs (Common Table Expressions)
--- Think of CTEs as temporary named result sets that exist just
--- for your query. They make complex queries way more readable
--- by breaking them into logical steps. Use WITH to define them.
+-- Section 3: CTEs (Common Table Expressions)
+-- Named temporary result sets defined via WITH clause for query modularity
 -- ============================================================
 
--- 3.1 Top scorers per team
---     First we count goals per player in the CTE,
---     then join it with team/country info for the final result
+-- 3.1 Goal scorers ranked by team
+-- CTE aggregates goals per player; outer query joins dimensional data
 WITH TeamGoalScorers AS (
     SELECT 
         p.TeamID,
         p.PlayerID,
         p.FirstName + ' ' + p.LastName AS PlayerName,
-        COUNT(me.EventID) AS TotalGoals  -- count goal events
+        COUNT(me.EventID) AS TotalGoals
     FROM MatchEvents me
     INNER JOIN Players p ON me.PlayerID = p.PlayerID
     WHERE me.EventType = 'Goal'
@@ -283,10 +257,8 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID
 ORDER BY tgs.TotalGoals DESC;
 GO
 
--- 3.2 Most popular matches by booking count
---     Count bookings per match, then rank them.
---     DENSE_RANK means ties get the same rank and the next rank
---     doesn't skip (1,1,2 not 1,1,3)
+-- 3.2 Match popularity ranking by booking volume
+-- DENSE_RANK handles ties without gaps in ranking sequence
 WITH BookingsPerMatch AS (
     SELECT 
         MatchID,
@@ -307,10 +279,8 @@ INNER JOIN Stadiums s ON m.StadiumID  = s.StadiumID
 ORDER BY PopularityRank, bpm.MatchID;
 GO
 
--- 3.3 Yellow and red card summary per player
---     Using CASE inside COUNT to count specific event types.
---     CASE returns 1 when it matches, NULL otherwise.
---     COUNT ignores NULLs, so we only count the matches
+-- 3.3 Player disciplinary records
+-- Conditional aggregation via CASE expressions within COUNT
 WITH DisciplineRecord AS (
     SELECT 
         PlayerID,
@@ -333,9 +303,8 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID
 ORDER BY dr.TotalRedCards DESC, dr.TotalYellowCards DESC;
 GO
 
--- 3.4 Money made per match from ticket sales
---     Sum up all ticket prices for each match.
---     Prices come from TicketCategories, not directly from Tickets
+-- 3.4 Revenue analysis per match
+-- CTE calculates SUM of TicketCategories.Price via junction tables
 WITH MatchRevenue AS (
     SELECT 
         b.MatchID,
@@ -358,15 +327,12 @@ ORDER BY mr.TotalRevenue DESC;
 GO
 
 -- ============================================================
--- SECTION 4: CASE STATEMENTS
--- SQL's version of if/else. Checks conditions top-to-bottom
--- and returns the first match. Super useful for categorizing
--- or transforming data on the fly.
+-- Section 4: CASE Statements
+-- Conditional logic for result classification and data transformation
 -- ============================================================
 
--- 4.1 Who won each match?
---     Compare the scores and label the result.
---     ELSE catches unplayed matches where scores are NULL
+-- 4.1 Match outcome determination
+-- Evaluates score differentials to classify results; ELSE handles NULL
 SELECT 
     m.MatchID,
     m.MatchDate,
@@ -386,9 +352,8 @@ INNER JOIN NationalTeams t1 ON m.Team1ID = t1.TeamID
 INNER JOIN NationalTeams t2 ON m.Team2ID = t2.TeamID;
 GO
 
--- 4.2 Booking urgency based on match date
---     Labels bookings as last-minute, soon, or advance based on
---     days remaining until the match
+-- 4.2 Booking urgency classification
+-- DATEDIFF categorizes bookings by temporal proximity to match date
 SELECT 
     t.TicketID,
     t.SeatSection,
@@ -407,9 +372,8 @@ INNER JOIN Bookings b ON t.BookingID = b.BookingID
 INNER JOIN Matches m  ON b.MatchID   = m.MatchID;
 GO
 
--- 4.3 Stadium attendance levels
---     Categorize attendance as low/medium/high based on % of capacity.
---     Uses percentages so it works for stadiums of any size
+-- 4.3 Stadium attendance categorization
+-- Percentage-based thresholds relative to SeatingCapacity
 SELECT 
     m.MatchID,
     m.MatchDate,
@@ -425,9 +389,8 @@ FROM Matches m
 INNER JOIN Stadiums s ON m.StadiumID = s.StadiumID;
 GO
 
--- 4.4 Group player positions into broad categories
---     Maps specific positions like "Left-Back" into general categories
---     like "DEF" for easier analysis
+-- 4.4 Positional grouping standardization
+-- Maps specific positions to generalized role categories
 SELECT 
     PlayerID,
     FirstName + ' ' + LastName AS PlayerName,
@@ -444,8 +407,8 @@ SELECT
 FROM Players;
 GO
 
--- 4.5 Make booking status more readable
---     Turns codes like "Confirmed" into full descriptions
+-- 4.5 Booking status description mapping
+-- Simple CASE for discrete value translation
 SELECT 
     b.BookingID,
     f.FirstName + ' ' + f.LastName AS FanName,
@@ -461,15 +424,13 @@ INNER JOIN Fans f ON b.FanID = f.FanID;
 GO
 
 -- ============================================================
--- SECTION 5: STORED PROCEDURES
--- Pre-written SQL blocks you can execute by name. Great for
--- code reuse and security - users can run the proc without
--- needing direct table access. SET NOCOUNT ON stops the
--- "X rows affected" messages from cluttering the output.
+-- Section 5: Stored Procedures
+-- Parameterized, reusable database objects encapsulating business logic
+-- SET NOCOUNT ON suppresses row count messages
 -- ============================================================
 
--- 5.1 Get all matches for a specific tournament stage
---     Pass in a stage like 'Group Stage' or 'Final'
+-- 5.1 Match retrieval by tournament stage
+-- Input parameter filters Matches table; returns schedule details
 CREATE OR ALTER PROCEDURE usp_GetMatchesByStage
     @Stage NVARCHAR(50)
 AS
@@ -494,9 +455,8 @@ BEGIN
 END;
 GO
 
--- 5.2 Register a new fan
---     Checks for duplicate emails first. If email exists, throws an
---     error and stops. Otherwise creates the fan and returns their new ID
+-- 5.2 Fan registration with duplicate prevention
+-- Validates email uniqueness; returns SCOPE_IDENTITY() on success
 CREATE OR ALTER PROCEDURE usp_RegisterFan
     @FirstName            NVARCHAR(50),
     @LastName             NVARCHAR(50),
@@ -506,7 +466,6 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Stop if email already exists
     IF EXISTS (SELECT 1 FROM Fans WHERE Email = @Email)
     BEGIN
         RAISERROR('A fan with this email already exists.', 16, 1);
@@ -520,8 +479,8 @@ BEGIN
 END;
 GO
 
--- 5.3 Get player stats for a specific match
---     Counts goals, assists, and cards per player in the match
+-- 5.3 Player statistics aggregation by match
+-- Pivot-style aggregation using conditional COUNT
 CREATE OR ALTER PROCEDURE usp_GetPlayerStatsByMatch
     @MatchID INT
 AS
@@ -547,14 +506,12 @@ END;
 GO
 
 -- ============================================================
--- SECTION 6: FUNCTIONS
--- Return values that you can use in other queries. Scalar functions
--- return a single value. Table-valued functions return a whole table
--- you can query like any other table.
+-- Section 6: Functions
+-- Reusable calculation logic: Scalar (single value) and Table-valued
 -- ============================================================
 
--- 6.1 Count total goals for a player
---     Returns 0 if they haven't scored (instead of NULL)
+-- 6.1 Scalar function: Player goal tally
+-- Returns COUNT of 'Goal' events per PlayerID; ISNULL handles NULL
 CREATE OR ALTER FUNCTION fn_GetPlayerGoalCount
 (
     @PlayerID INT
@@ -572,10 +529,9 @@ BEGIN
     RETURN ISNULL(@GoalCount, 0);
 END;
 GO
--- Usage: SELECT dbo.fn_GetPlayerGoalCount(1) AS TotalGoals;
 
--- 6.2 Get formatted match result string
---     Returns something like "2 - 1 (Quarter-Final)"
+-- 6.2 Scalar function: Formatted match result
+-- Concatenates scores and tournament stage into descriptive string
 CREATE OR ALTER FUNCTION fn_GetMatchResult
 (
     @MatchID INT
@@ -594,11 +550,9 @@ BEGIN
     RETURN ISNULL(@Result, 'Match not found');
 END;
 GO
--- Usage: SELECT dbo.fn_GetMatchResult(1) AS Result;
 
--- 6.3 Get all bookings for a fan
---     Returns a table you can query. Way more efficient than
---     a multi-statement function
+-- 6.3 Inline table-valued function: Fan booking history
+-- Returns table result set for use in FROM clauses
 CREATE OR ALTER FUNCTION fn_GetFanBookings
 (
     @FanID INT
@@ -626,18 +580,14 @@ RETURN
     WHERE b.FanID = @FanID
 );
 GO
--- Usage: SELECT * FROM dbo.fn_GetFanBookings(1);
 
 -- ============================================================
--- SECTION 7: VIEWS
--- Saved SELECT statements. They don't store data themselves,
--- just re-run the query whenever you access them. Great for
--- simplifying complex queries and controlling what data users see.
+-- Section 7: Views
+-- Virtual tables providing abstraction and simplified data access
 -- ============================================================
 
--- 7.1 Complete match schedule view
---     Joins everything together - teams, stadium, location info.
---     Country is joined 3 times: for Team1, Team2, and host country
+-- 7.1 Comprehensive match schedule view
+-- Denormalizes match data including teams, venue, and host country
 CREATE OR ALTER VIEW vw_MatchSchedule AS
 SELECT 
     m.MatchID,
@@ -661,8 +611,8 @@ INNER JOIN Cities ci         ON s.CityID      = ci.CityID
 INNER JOIN Country co        ON ci.CountryID  = co.CountryID;
 GO
 
--- 7.2 Player stats summary across all matches
---     One row per player with all their totals
+-- 7.2 Player statistics summary view
+-- Aggregates events across all matches per player
 CREATE OR ALTER VIEW vw_PlayerStatsSummary AS
 SELECT 
     p.PlayerID,
@@ -680,8 +630,8 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID
 GROUP BY p.PlayerID, p.FirstName, p.LastName, p.Position, co.CountryName;
 GO
 
--- 7.3 Ticket sales and revenue per match
---     Shows how many tickets sold and how much money made
+-- 7.3 Ticket sales metrics per match
+-- Aggregates revenue and ticket counts with averaging
 CREATE OR ALTER VIEW vw_TicketSalesOverview AS
 SELECT 
     m.MatchID,
@@ -700,15 +650,13 @@ GROUP BY m.MatchID, m.MatchDate, m.TournamentStage, s.StadiumName;
 GO
 
 -- ============================================================
--- SECTION 8: TRIGGERS
--- Code that fires automatically when something happens to a table
--- (INSERT, UPDATE, DELETE). Inside triggers you get two magic tables:
---   inserted : the new data being added/updated
---   deleted  : the old data being removed/changed
+-- Section 8: Triggers
+-- DML event handlers (INSERT/UPDATE/DELETE) for automated enforcement
+-- Uses inserted/deleted pseudo-tables for row comparison
 -- ============================================================
 
--- 8.1 Log when matches get deleted
---     Records what got deleted in an audit table
+-- 8.1 Audit logging for match deletions
+-- AFTER DELETE trigger capturing deleted rows to AdminLogs
 CREATE OR ALTER TRIGGER trg_LogMatchDelete
 ON Matches
 AFTER DELETE
@@ -716,7 +664,6 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 'deleted' table contains the rows that just got removed
     INSERT INTO AdminLogs (ActionType, AffectedTable, ActionTimeStamp, OldValue)
     SELECT 
         'DELETE',
@@ -728,9 +675,8 @@ BEGIN
 END;
 GO
 
--- 8.2 Stop fans from booking the same match twice
---     Checks if they already have a booking for this match.
---     If yes, rolls back the insert and throws an error
+-- 8.2 Multiple booking prevention with 4-ticket limit
+-- AFTER INSERT validation limiting fans to maximum 4 bookings per match
 CREATE OR ALTER TRIGGER trg_PreventDuplicateBooking
 ON Bookings
 AFTER INSERT
@@ -738,25 +684,26 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 'inserted' table has the new booking row we just added
+    -- Verify fan hasn't exceeded 4 bookings for the same match
     IF EXISTS (
         SELECT 1
-        FROM Bookings b
-        INNER JOIN inserted i 
-            ON  b.FanID    = i.FanID
-            AND b.MatchID  = i.MatchID
-            AND b.BookingID <> i.BookingID  -- don't compare to itself
+        FROM inserted i
+        WHERE (
+            SELECT COUNT(*)
+            FROM Bookings b
+            WHERE b.FanID = i.FanID
+              AND b.MatchID = i.MatchID
+        ) > 4
     )
     BEGIN
         ROLLBACK TRANSACTION;
-        RAISERROR('This fan already has a booking for this match.', 16, 1);
+        RAISERROR('A fan cannot have more than 4 bookings for the same match.', 16, 1);
     END;
 END;
 GO
 
--- 8.3 Auto-confirm bookings when a ticket is created
---     When a ticket gets inserted, find its booking and
---     change status from 'Pending' to 'Confirmed'
+-- 8.3 Automatic booking confirmation on ticket issuance
+-- Updates BookingStatus from 'Pending' to 'Confirmed'
 CREATE OR ALTER TRIGGER trg_ConfirmBookingOnTicket
 ON Tickets
 AFTER INSERT
@@ -773,14 +720,14 @@ END;
 GO
 
 -- ============================================================
--- SECTION 9: CURSORS
--- Process result sets row-by-row instead of all at once.
--- Steps: DECLARE -> OPEN -> FETCH (in loop) -> CLOSE -> DEALLOCATE
--- @@FETCH_STATUS = 0 means we got a row, anything else means we're done
--- Note: Cursors are slower than set-based operations, use them sparingly
+-- Section 9: Cursors
+-- Row-by-row processing for iterative operations
+-- Lifecycle: DECLARE -> OPEN -> FETCH -> WHILE -> CLOSE -> DEALLOCATE
+-- Note: Set-based operations preferred for performance; cursors for procedural logic
 -- ============================================================
 
--- 9.1 Print a summary line for each match
+-- 9.1 Match summary report generation
+-- Iterates Matches result set for PRINT output
 DECLARE @MatchID     INT,
         @MatchDate   DATE,
         @Stage       NVARCHAR(50),
@@ -788,7 +735,6 @@ DECLARE @MatchID     INT,
         @Team2Score  INT,
         @StadiumName NVARCHAR(100);
 
--- Define what data we're looping through
 DECLARE cur_MatchSummary CURSOR FOR
     SELECT m.MatchID, m.MatchDate, m.TournamentStage,
            m.Team1Score, m.Team2Score, s.StadiumName
@@ -798,11 +744,9 @@ DECLARE cur_MatchSummary CURSOR FOR
 
 OPEN cur_MatchSummary;
 
--- Get the first row
 FETCH NEXT FROM cur_MatchSummary 
 INTO @MatchID, @MatchDate, @Stage, @Team1Score, @Team2Score, @StadiumName;
 
--- Loop until no more rows
 WHILE @@FETCH_STATUS = 0
 BEGIN
     PRINT 'Match ' + CAST(@MatchID AS NVARCHAR)
@@ -812,18 +756,16 @@ BEGIN
         + '-'          + CAST(ISNULL(@Team2Score, 0) AS NVARCHAR)
         + ' | Venue: ' + @StadiumName;
 
-    -- Get next row
     FETCH NEXT FROM cur_MatchSummary 
     INTO @MatchID, @MatchDate, @Stage, @Team1Score, @Team2Score, @StadiumName;
 END;
 
--- Clean up
 CLOSE cur_MatchSummary;
 DEALLOCATE cur_MatchSummary;
 GO
 
--- 9.2 Cancel old pending bookings
---     Finds bookings older than 7 days and cancels them one by one
+-- 9.2 Expired pending booking cancellation
+-- Cursor-based update for bookings exceeding 7-day pending threshold
 DECLARE @BookingID   INT,
         @BookingDate DATE,
         @Status      NVARCHAR(20);
@@ -856,26 +798,21 @@ DEALLOCATE cur_ExpiredBookings;
 GO
 
 -- ============================================================
--- SECTION 10: TRANSACTIONS
--- Wrap multiple statements into one all-or-nothing unit.
--- Either everything succeeds (COMMIT) or everything fails (ROLLBACK).
--- TRY/CATCH handles errors - if anything fails in TRY, jump to CATCH
--- and roll everything back. Keeps your data consistent.
+-- Section 10: Transactions
+-- ACID compliance via BEGIN TRANSACTION / COMMIT / ROLLBACK
+-- TRY/CATCH blocks ensure atomicity and error handling
 -- ============================================================
 
--- 10.1 Create a booking and ticket together
---      If either fails, both get rolled back - no orphaned data
+-- 10.1 Atomic booking and ticket creation
+-- Ensures both Booking and Ticket rows succeed or fail together
 BEGIN TRANSACTION;
 
 BEGIN TRY
-    -- Insert the booking
     INSERT INTO Bookings (FanID, MatchID, CategoryID, BookingDate, SeatNumber, BookingStatus)
     VALUES (1, 1, 1, GETDATE(), 'A12', 'Pending');
 
-    -- Get the ID we just created
     DECLARE @NewBookingID INT = SCOPE_IDENTITY();
 
-    -- Insert the ticket linked to that booking
     INSERT INTO Tickets (BookingID, TicketCode, PriceAtPurchase, SeatSection, SeatRow, SeatNumber)
     VALUES (@NewBookingID, 'WC2026-A12-001', 250.00, 'A', '1', '12');
 
@@ -888,8 +825,8 @@ BEGIN CATCH
 END CATCH;
 GO
 
--- 10.2 Update match score and log it together
---      Both the score update and audit log must succeed as one unit
+-- 10.2 Match score update with audit logging
+-- Dual operation atomicity: data modification + audit trail
 BEGIN TRANSACTION;
 
 BEGIN TRY
@@ -909,20 +846,17 @@ BEGIN CATCH
 END CATCH;
 GO
 
--- 10.3 Delete a fan and their bookings together
---      Cancel their bookings first, then delete the fan.
---      If either fails, both roll back
+-- 10.3 Cascading fan deletion with booking cancellation
+-- Updates child records before parent deletion within transaction boundary
 BEGIN TRANSACTION;
 
 BEGIN TRY
     DECLARE @FanToDelete INT = 5;
 
-    -- Cancel all their bookings first
     UPDATE Bookings
     SET BookingStatus = 'Cancelled'
     WHERE FanID = @FanToDelete;
 
-    -- Then remove the fan
     DELETE FROM Fans
     WHERE FanID = @FanToDelete;
 
@@ -936,30 +870,26 @@ END CATCH;
 GO
 
 -- ============================================================
--- SECTION 11: SECURITY - AUTHENTICATION
--- Two ways to log in: Windows (uses your OS account) or
--- SQL Server (username + password).
--- Roles group permissions so you can assign them to multiple users.
--- GRANT gives permission, DENY blocks it (overrides GRANT),
--- REVOKE removes it.
+-- Section 11: Security - Authentication & Authorization
+-- Principals: Logins (server-level) and Users (database-level)
+-- Securables: GRANT (allow), DENY (override deny), REVOKE (remove)
 -- ============================================================
 
--- 11.1 Create a SQL login for an admin
---      CHECK_POLICY enforces strong passwords
---      CHECK_EXPIRATION makes them change it periodically
+-- 11.1 SQL Server authentication login creation
+-- CHECK_POLICY enforces complexity; CHECK_EXPIRATION enables password aging
 CREATE LOGIN TournamentAdmin 
 WITH PASSWORD         = 'Adm!nS3cur3#2026',
      CHECK_POLICY     = ON,
      CHECK_EXPIRATION = ON;
 GO
 
--- 11.2 Create a database user for that login
---      Login = server level, User = database level
+-- 11.2 Database user mapping
+-- Associates server login with database security context
 CREATE USER TournamentAdmin FOR LOGIN TournamentAdmin;
 GO
 
--- 11.3 Create a read-only role for reports
---      Give them access to views only, not raw tables
+-- 11.3 Role-based access for reporting
+-- Custom role with SELECT permissions on specific views only
 CREATE ROLE db_ReportViewer;
 GO
 
@@ -968,8 +898,8 @@ GRANT SELECT ON vw_PlayerStatsSummary  TO db_ReportViewer;
 GRANT SELECT ON vw_TicketSalesOverview TO db_ReportViewer;
 GO
 
--- 11.4 Give admin rights to manage data
---      Can read/write tables and run stored procedures
+-- 11.4 Data manipulation permissions for administrators
+-- Explicit GRANT on tables and EXECUTE on stored procedures
 GRANT SELECT, INSERT, UPDATE, DELETE ON Matches       TO TournamentAdmin;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Players       TO TournamentAdmin;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Bookings      TO TournamentAdmin;
@@ -981,46 +911,41 @@ GRANT EXECUTE ON usp_RegisterFan           TO TournamentAdmin;
 GRANT EXECUTE ON usp_GetPlayerStatsByMatch TO TournamentAdmin;
 GO
 
--- 11.5 Block deletes on critical tables
---      DENY beats GRANT, so even if they get another role that
---      allows delete, this will still block it
+-- 11.5 Explicit deny permissions
+-- DENY overrides GRANT; prevents deletion of critical entities
 DENY DELETE ON Matches       TO TournamentAdmin;
 DENY DELETE ON NationalTeams TO TournamentAdmin;
 GO
 
 -- ============================================================
--- SECTION 12: SECURITY - ENCRYPTION
--- Three-layer key system:
---   1. Master Key - protected by password (root of everything)
---   2. Certificate - protects the symmetric key
---   3. Symmetric Key - actually encrypts your data (AES-256)
--- Always OPEN the key before encrypting/decrypting,
--- then CLOSE it right after to minimize exposure.
+-- Section 12: Security - Encryption
+-- Hierarchy: Master Key -> Certificate -> Symmetric Key
+-- AES-256 encryption for sensitive data (IdentificationNumber)
 -- ============================================================
 
--- 12.1 Create the master key
---      This is required before anything else. Keep the password safe!
+-- 12.1 Database Master Key creation
+-- Root encryption key protected by password
 CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'M@sterKey#2026!';
 GO
 
--- 12.2 Create a certificate
---      This protects the symmetric key below
+-- 12.2 Certificate creation
+-- Protects symmetric key; contains public/private key pair
 CREATE CERTIFICATE FIFA_Cert
     WITH SUBJECT = 'FIFA WorldCup 2026 Data Protection';
 GO
 
--- 12.3 Create the symmetric key that does the actual encryption
---      Using AES-256 (industry standard)
+-- 12.3 Symmetric key creation
+-- AES_256 algorithm for data encryption/decryption operations
 CREATE SYMMETRIC KEY FIFA_SymKey
     WITH ALGORITHM = AES_256
     ENCRYPTION BY CERTIFICATE FIFA_Cert;
 GO
 
--- 12.4 Add a column to store encrypted data
+-- 12.4 Data encryption implementation
+-- Adds VARBINARY column and encrypts existing identification data
 ALTER TABLE Fans ADD EncryptedIDNumber VARBINARY(256);
 GO
 
--- Encrypt all existing ID numbers
 OPEN SYMMETRIC KEY FIFA_SymKey
     DECRYPTION BY CERTIFICATE FIFA_Cert;
 
@@ -1030,12 +955,11 @@ SET EncryptedIDNumber = ENCRYPTBYKEY(
     CONVERT(NVARCHAR(50), IdentificationNumber)
 );
 
--- Always close the key when done
 CLOSE SYMMETRIC KEY FIFA_SymKey;
 GO
 
--- 12.5 Decrypt the data to read it
---      Open key, decrypt, close key
+-- 12.5 Data decryption query
+-- Opens key, decrypts VARBINARY to NVARCHAR, closes key
 OPEN SYMMETRIC KEY FIFA_SymKey
     DECRYPTION BY CERTIFICATE FIFA_Cert;
 
