@@ -917,7 +917,7 @@ CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'M@sterKey#2026!';
 GO
 
 -- 12.2 Certificate creation
--- Protects symmetric key; contains public/private key pair
+-- Protects symmetric key, contains public/private key pair
 CREATE CERTIFICATE FIFA_Cert
     WITH SUBJECT = 'FIFA WorldCup 2026 Data Protection';
 GO
