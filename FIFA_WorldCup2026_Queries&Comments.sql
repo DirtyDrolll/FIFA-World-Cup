@@ -1,6 +1,6 @@
 -- ============================================================
 -- FIFA World Cup 2026 - Database Queries & Programmability
--- Subject:    Database Development 281
+-- Subject:Database Development 281
 -- ============================================================
 -- Contents:
 --   Section 1  : Joins
@@ -24,7 +24,7 @@ GO
 -- Section 1: Joins
 -- INNER JOIN, LEFT JOIN, and multi-table relationships
 
--- 1.1 Player roster with team group assignments
+-- Player roster with team group assignments
 -- Joins Players to NationalTeams via TeamID foreign key
 SELECT 
     p.PlayerID,
@@ -37,7 +37,7 @@ FROM Players p
 INNER JOIN NationalTeams nt ON p.TeamID = nt.TeamID;
 GO
 
--- 1.2 Complete match schedule with venue details
+-- Complete match schedule with venue details
 -- Self-join on NationalTeams for Team1 Team2 chains to Stadiums, Cities, Country
 SELECT 
     m.MatchID,
@@ -58,7 +58,7 @@ INNER JOIN Cities c         ON s.CityID    = c.CityID
 INNER JOIN Country co       ON c.CountryID = co.CountryID;
 GO
 
--- 1.3 Fan registration status with booking history
+-- Fan registration status with booking history
 -- LEFT JOIN ensures all fans appear, including those without bookings
 SELECT 
     f.FanID,
@@ -72,7 +72,7 @@ FROM Fans f
 LEFT JOIN Bookings b ON f.FanID = b.FanID;
 GO
 
--- 1.4 Match events with player attribution
+-- Match events with player attribution
 -- LEFT JOINs handle matches without events and events without player assignments
 SELECT 
     m.MatchID,
@@ -87,7 +87,7 @@ LEFT JOIN MatchEvents me ON m.MatchID   = me.MatchID
 LEFT JOIN Players p      ON me.PlayerID = p.PlayerID;
 GO
 
--- 1.5 Ticket details with purchaser information
+-- Ticket details with purchaser information
 -- Traverses Tickets -> Bookings -> Fans relationship chain
 SELECT 
     t.TicketID,
@@ -105,7 +105,7 @@ INNER JOIN Bookings b ON t.BookingID = b.BookingID
 INNER JOIN Fans f     ON b.FanID     = f.FanID;
 GO
 
--- 1.6 Match official assignments with nationality
+-- Match official assignments with nationality
 -- Joins junction table MatchOfficials to Matches, Officials, and Country
 SELECT 
     m.MatchID,
@@ -120,7 +120,7 @@ INNER JOIN Officials o ON mo.OfficialID = o.OfficialID
 INNER JOIN Country c   ON o.CountryID   = c.CountryID;
 GO
 
--- 1.7 Coaching staff directory by team
+-- Coaching staff directory by team
 -- Links CoachingStaff to NationalTeams and Country for complete roster
 SELECT 
     cs.StaffID,
@@ -138,7 +138,7 @@ GO
 -- Section 2: Subqueries
 -- ============================================================
 
--- 2.1 Active fans with existing bookings
+-- Active fans with existing bookings
 -- IN clause filters Fans table against derived list of booking holders
 SELECT 
     FanID,
@@ -153,7 +153,7 @@ WHERE FanID IN
 );
 GO
 
--- 2.2 Matches scheduled in above average capacity venues
+-- Matches scheduled in above average capacity venues
 -- Nested subquery calculates AVG(SeatingCapacity) for comparison
 SELECT 
     MatchID,
@@ -171,7 +171,7 @@ WHERE StadiumID IN
 );
 GO
 
--- 2.3 Players with goal scoring records
+-- Players with goal scoring records
 -- EXISTS subquery identifies players with 'Goal' event types
 SELECT 
     PlayerID,
@@ -186,7 +186,7 @@ WHERE PlayerID IN (
 );
 GO
 
--- 2.4 Teams awaiting their first match
+-- Teams awaiting their first match
 -- NOT IN with UNION excludes teams appearing in either Team 1ID or Team 2ID
 SELECT 
     TeamID,
@@ -200,7 +200,7 @@ WHERE TeamID NOT IN
 );
 GO
 
--- 2.5 Correlated subquery: Most recent booking per fan
+-- Correlated subquery: Most recent booking per fan
 -- Inner query references outer table (f.FanID) for row specific calculation
 SELECT 
     f.FanID,
@@ -214,7 +214,7 @@ SELECT
 FROM Fans f;
 GO
 
--- 2.6 Matches exceeding average attendance
+-- Matches exceeding average attendance
 -- Scalar subquery computes average excluding NULL (unplayed) matches
 SELECT 
     MatchID,
@@ -234,7 +234,7 @@ GO
 -- Section 3: CTEs (Common Table Expressions)
 -- ============================================================
 
--- 3.1 Goal scorers ranked by team
+-- Goal scorers ranked by team
 -- CTE aggregates goals per player, outer query joins dimensional data
 WITH TeamGoalScorers AS
  (
@@ -259,7 +259,7 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID
 ORDER BY tgs.TotalGoals DESC;
 GO
 
--- 3.2 Match popularity ranking by booking volume
+-- Match popularity ranking by booking volume
 -- DENSE_RANK handles ties without gaps in ranking sequence
 WITH BookingsPerMatch AS 
 (
@@ -282,7 +282,7 @@ INNER JOIN Stadiums s ON m.StadiumID  = s.StadiumID
 ORDER BY PopularityRank, bpm.MatchID;
 GO
 
--- 3.3 Player disciplinary records
+-- Player disciplinary records
 -- Conditional aggregation via CASE expressions within COUNT
 WITH DisciplineRecord AS
  (
@@ -307,7 +307,7 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID
 ORDER BY dr.TotalRedCards DESC, dr.TotalYellowCards DESC;
 GO
 
--- 3.4 Revenue analysis per match
+-- Revenue analysis per match
 -- CTE calculates SUM of TicketCategories.Price via junction tables
 WITH MatchRevenue AS (
     SELECT 
@@ -334,7 +334,7 @@ GO
 -- Section 4: CASE Statements
 -- ============================================================
 
--- 4.1 Match outcome determination
+-- Match outcome determination
 -- Evaluates score differentials to classify results, ELSE handles NULL
 SELECT 
     m.MatchID,
@@ -355,7 +355,7 @@ INNER JOIN NationalTeams t1 ON m.Team1ID = t1.TeamID
 INNER JOIN NationalTeams t2 ON m.Team2ID = t2.TeamID;
 GO
 
--- 4.2 Booking urgency classification
+-- Booking urgency classification
 -- DATEDIFF categorizes bookings by temporal proximity to match date
 SELECT 
     t.TicketID,
@@ -375,7 +375,7 @@ INNER JOIN Bookings b ON t.BookingID = b.BookingID
 INNER JOIN Matches m  ON b.MatchID   = m.MatchID;
 GO
 
--- 4.3 Stadium attendance categorization
+-- Stadium attendance categorization
 -- Percentage-based thresholds relative to SeatingCapacity
 SELECT 
     m.MatchID,
@@ -392,7 +392,7 @@ FROM Matches m
 INNER JOIN Stadiums s ON m.StadiumID = s.StadiumID;
 GO
 
--- 4.4 Positional grouping standardization
+-- Positional grouping standardization
 -- Maps specific positions to generalized role categories
 SELECT 
     PlayerID,
@@ -410,7 +410,7 @@ SELECT
 FROM Players;
 GO
 
--- 4.5 Booking status description mapping
+-- Booking status description mapping
 -- Simple CASE for discrete value translation
 SELECT 
     b.BookingID,
@@ -430,7 +430,7 @@ GO
 -- Section 5: Stored Procedures
 -- ============================================================
 
--- 5.1 Match retrieval by tournament stage
+-- Match retrieval by tournament stage
 -- Input parameter filters Matches table; returns schedule details
 CREATE OR ALTER PROCEDURE usp_GetMatchesByStage
     @Stage NVARCHAR(50)
@@ -456,7 +456,7 @@ BEGIN
 END;
 GO
 
--- 5.2 Fan registration with duplicate prevention
+-- Fan registration with duplicate prevention
 -- Validates email uniqueness; returns SCOPE_IDENTITY() on success
 CREATE OR ALTER PROCEDURE usp_RegisterFan
     @FirstName            NVARCHAR(50),
@@ -480,7 +480,7 @@ BEGIN
 END;
 GO
 
--- 5.3 Player statistics aggregation by match
+-- Player statistics aggregation by match
 -- Pivot-style aggregation using conditional COUNT
 CREATE OR ALTER PROCEDURE usp_GetPlayerStatsByMatch
     @MatchID INT
@@ -510,7 +510,7 @@ GO
 -- Section 6: Functions
 -- ============================================================
 
--- 6.1 Scalar function: Player goal tally
+-- Scalar function: Player goal tally
 -- Returns COUNT of 'Goal' events per PlayerID, ISNULL handles NULL
 CREATE OR ALTER FUNCTION fn_GetPlayerGoalCount
 (
@@ -530,7 +530,7 @@ BEGIN
 END;
 GO
 
--- 6.2 Scalar function: Formatted match result
+-- Scalar function: Formatted match result
 -- Concatenates scores and tournament stage into descriptive string
 CREATE OR ALTER FUNCTION fn_GetMatchResult
 (
@@ -551,7 +551,7 @@ BEGIN
 END;
 GO
 
--- 6.3 Inline table-valued function: Fan booking history
+-- Inline table-valued function: Fan booking history
 -- Returns table result set for use in FROM clauses
 CREATE OR ALTER FUNCTION fn_GetFanBookings
 (
@@ -585,7 +585,7 @@ GO
 -- Section 7: Views
 -- ============================================================
 
--- 7.1 Comprehensive match schedule view
+-- Comprehensive match schedule view
 -- Denormalizes match data including teams, venue, and host country
 CREATE OR ALTER VIEW vw_MatchSchedule AS
 SELECT 
@@ -610,7 +610,7 @@ INNER JOIN Cities ci         ON s.CityID      = ci.CityID
 INNER JOIN Country co        ON ci.CountryID  = co.CountryID;
 GO
 
--- 7.2 Player statistics summary view
+-- Player statistics summary view
 -- Aggregates events across all matches per player
 CREATE OR ALTER VIEW vw_PlayerStatsSummary AS
 SELECT 
@@ -629,7 +629,7 @@ INNER JOIN Country co       ON nt.CountryID = co.CountryID
 GROUP BY p.PlayerID, p.FirstName, p.LastName, p.Position, co.CountryName;
 GO
 
--- 7.3 Ticket sales metrics per match
+-- Ticket sales metrics per match
 -- Aggregates revenue and ticket counts with averaging
 CREATE OR ALTER VIEW vw_TicketSalesOverview AS
 SELECT 
@@ -652,7 +652,7 @@ GO
 -- Section 8: Triggers
 -- ============================================================
 
--- 8.1 Audit logging for match deletions
+-- Audit logging for match deletions
 -- AFTER DELETE trigger capturing deleted rows to AdminLogs
 CREATE OR ALTER TRIGGER trg_LogMatchDelete
 ON Matches
@@ -672,7 +672,7 @@ BEGIN
 END;
 GO
 
--- 8.2 Multiple booking prevention with 4-ticket limit
+-- Multiple booking prevention with 4-ticket limit
 -- AFTER INSERT validation limiting fans to maximum 4 bookings per match
 CREATE OR ALTER TRIGGER trg_PreventDuplicateBooking
 ON Bookings
@@ -699,7 +699,7 @@ BEGIN
 END;
 GO
 
--- 8.3 Automatic booking confirmation on ticket issuance
+-- Automatic booking confirmation on ticket issuance
 -- Updates BookingStatus from 'Pending' to 'Confirmed'
 CREATE OR ALTER TRIGGER trg_ConfirmBookingOnTicket
 ON Tickets
@@ -720,7 +720,7 @@ GO
 -- Section 9: Cursors
 -- ============================================================
 
--- 9.1 Match summary report generation
+-- Match summary report generation
 -- Iterates Matches result set for PRINT output
 DECLARE @MatchID     INT,
         @MatchDate   DATE,
@@ -758,7 +758,7 @@ CLOSE cur_MatchSummary;
 DEALLOCATE cur_MatchSummary;
 GO
 
--- 9.2 Expired pending booking cancellation
+-- Expired pending booking cancellation
 -- Cursor-based update for bookings exceeding 7-day pending threshold
 DECLARE @BookingID   INT,
         @BookingDate DATE,
@@ -795,7 +795,7 @@ GO
 -- Section 10: Transactions
 -- ============================================================
 
--- 10.1 Atomic booking and ticket creation
+-- Atomic booking and ticket creation
 -- Ensures both Booking and Ticket rows succeed or fail together
 BEGIN TRANSACTION;
 
@@ -817,7 +817,7 @@ BEGIN CATCH
 END CATCH;
 GO
 
--- 10.2 Match score update with audit logging
+-- Match score update with audit logging
 -- Dual operation atomicity: data modification + audit trail
 BEGIN TRANSACTION;
 
@@ -838,7 +838,7 @@ BEGIN CATCH
 END CATCH;
 GO
 
--- 10.3 Cascading fan deletion with booking cancellation
+-- Cascading fan deletion with booking cancellation
 -- Updates child records before parent deletion within transaction boundary
 BEGIN TRANSACTION;
 
@@ -865,7 +865,7 @@ GO
 -- Section 11: Security - Authentication & Authorization
 -- ============================================================
 
--- 11.1 SQL Server authentication login creation
+-- SQL Server authentication login creation
 -- CHECK_POLICY enforces complexity; CHECK_EXPIRATION enables password aging
 CREATE LOGIN TournamentAdmin 
 WITH PASSWORD         = 'Adm!nS3cur3#2026',
@@ -873,12 +873,12 @@ WITH PASSWORD         = 'Adm!nS3cur3#2026',
      CHECK_EXPIRATION = ON;
 GO
 
--- 11.2 Database user mapping
+-- Database user mapping
 -- Associates server login with database security context
 CREATE USER TournamentAdmin FOR LOGIN TournamentAdmin;
 GO
 
--- 11.3 Role-based access for reporting
+-- Role-based access for reporting
 -- Custom role with SELECT permissions on specific views only
 CREATE ROLE db_ReportViewer;
 GO
@@ -888,7 +888,7 @@ GRANT SELECT ON vw_PlayerStatsSummary  TO db_ReportViewer;
 GRANT SELECT ON vw_TicketSalesOverview TO db_ReportViewer;
 GO
 
--- 11.4 Data manipulation permissions for administrators
+-- Data manipulation permissions for administrators
 -- Explicit GRANT on tables and EXECUTE on stored procedures
 GRANT SELECT, INSERT, UPDATE, DELETE ON Matches       TO TournamentAdmin;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Players       TO TournamentAdmin;
@@ -901,7 +901,7 @@ GRANT EXECUTE ON usp_RegisterFan           TO TournamentAdmin;
 GRANT EXECUTE ON usp_GetPlayerStatsByMatch TO TournamentAdmin;
 GO
 
--- 11.5 Explicit deny permissions
+-- Explicit deny permissions
 -- DENY overrides GRANT; prevents deletion of critical entities
 DENY DELETE ON Matches       TO TournamentAdmin;
 DENY DELETE ON NationalTeams TO TournamentAdmin;
@@ -911,25 +911,25 @@ GO
 -- Section 12: Security - Encryption
 -- ============================================================
 
--- 12.1 Database Master Key creation
+-- Database Master Key creation
 -- Root encryption key protected by password
 CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'M@sterKey#2026!';
 GO
 
--- 12.2 Certificate creation
+-- Certificate creation
 -- Protects symmetric key, contains public/private key pair
 CREATE CERTIFICATE FIFA_Cert
     WITH SUBJECT = 'FIFA WorldCup 2026 Data Protection';
 GO
 
--- 12.3 Symmetric key creation
+-- Symmetric key creation
 -- AES_256 algorithm for data encryption/decryption operations
 CREATE SYMMETRIC KEY FIFA_SymKey
     WITH ALGORITHM = AES_256
     ENCRYPTION BY CERTIFICATE FIFA_Cert;
 GO
 
--- 12.4 Data encryption implementation
+-- Data encryption implementation
 -- Adds VARBINARY column and encrypts existing identification data
 ALTER TABLE Fans ADD EncryptedIDNumber VARBINARY(256);
 GO
@@ -946,7 +946,7 @@ SET EncryptedIDNumber = ENCRYPTBYKEY(
 CLOSE SYMMETRIC KEY FIFA_SymKey;
 GO
 
--- 12.5 Data decryption query
+-- Data decryption query
 -- Opens key, decrypts VARBINARY to NVARCHAR, closes key
 OPEN SYMMETRIC KEY FIFA_SymKey
     DECRYPTION BY CERTIFICATE FIFA_Cert;
