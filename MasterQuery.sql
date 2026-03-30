@@ -27,18 +27,31 @@ Use FIFATournamentDB;
 GO
 --//////////////////////Tables creation///////////////////////--
 --Reference--
+--First checks if the table does not exist, before creating
+IF 
+OBJECT_ID           -- Finds an object's internal ID number
+('Country',         -- The specific name of the table being looked for
+'U')                --Tells SQL to ONLY look for User defined Tables
+IS NULL        
+Begin
 CREATE TABLE Country (
     CountryID INT IDENTITY(1,1) PRIMARY KEY ,
     CountryName NVARCHAR(100) NOT NULL ,
     CONSTRAINT UQ_CountryName UNIQUE (CountryName)
 );
+End;
 
+IF OBJECT_ID('Cities','U') IS NULL 
+Begin
 CREATE TABLE Cities (
     CityID INT IDENTITY(1,1) PRIMARY KEY ,
     CityName VARCHAR(100) NOT NULL ,
     CountryID INT FOREIGN KEY REFERENCES Country(CountryID) NOT NULL
 );
+End;
 
+IF OBJECT_ID('Stadiums','U') IS NULL 
+Begin
 CREATE TABLE Stadiums (
     StadiumID INT IDENTITY(1,1) PRIMARY KEY ,
     StadiumName VARCHAR(100) NOT NULL ,
@@ -46,7 +59,10 @@ CREATE TABLE Stadiums (
     CityID INT FOREIGN KEY REFERENCES Cities(CityID) NOT NULL,
     CONSTRAINT UQ_StadiumName UNIQUE (StadiumName)
 );
+End;
 
+IF OBJECT_ID('TicketCategories','U') IS NULL 
+Begin
 CREATE TABLE TicketCategories (
     CategoryID INT IDENTITY(1,1) PRIMARY KEY ,
     CategoryName VARCHAR(50) NOT NULL,
@@ -54,16 +70,22 @@ CREATE TABLE TicketCategories (
     Description VARCHAR(255),
     CONSTRAINT UQ_CategoryName UNIQUE (CategoryName)
 );
+End;
 ---------------------------
 
 --Participant (Players and Personnel)--
+IF OBJECT_ID('NationalTeams','U') IS NULL 
+Begin
 CREATE TABLE NationalTeams (
     TeamID INT PRIMARY KEY IDENTITY(1,1) ,
     GroupLetter CHAR(1) NOT NULL ,
     CountryID INT FOREIGN KEY REFERENCES Country(CountryID) NOT NULL,
     CONSTRAINT UQ_CountryID UNIQUE (CountryID)
 );
+End;
 
+IF OBJECT_ID('Players','U') IS NULL 
+Begin
 CREATE TABLE Players (
     PlayerID INT IDENTITY(1,1) PRIMARY KEY ,
     FirstName NVARCHAR(50) NOT NULL,
@@ -73,9 +95,11 @@ CREATE TABLE Players (
     Position VARCHAR(50),
     TeamID INT NOT NULL FOREIGN KEY REFERENCES NationalTeams(TeamID),
     CONSTRAINT CH_StadiumName CHECK (Age >= 15)
-
 );
-    
+End;
+
+IF OBJECT_ID('TeamStaff','U') IS NULL 
+Begin
 CREATE TABLE TeamStaff (
     StaffID INT PRIMARY KEY IDENTITY(1,1),
     FirstName NVARCHAR(50) NOT NULL,
@@ -84,16 +108,22 @@ CREATE TABLE TeamStaff (
     TeamID INT NOT NULL,
     CONSTRAINT FK_Staff_Teams FOREIGN KEY (TeamID) REFERENCES NationalTeams(TeamID)
 );
+End;
 
+IF OBJECT_ID('Officials','U') IS NULL 
+Begin
 CREATE TABLE Officials (
     OfficialID INT IDENTITY(1,1) PRIMARY KEY ,
     FirstName NVARCHAR(50) NOT NULL,
     LastName NVARCHAR(50) NOT NULL,
     CountryID INT FOREIGN KEY (CountryID) REFERENCES Country(CountryID) NOT NULL
 );
+End;
 ---------------------------
 
 --Match Operations--
+IF OBJECT_ID('Matches','U') IS NULL 
+Begin
 CREATE TABLE Matches (
     MatchID INT IDENTITY(1,1) PRIMARY KEY ,
     StadiumID INT NOT NULL,
@@ -108,7 +138,10 @@ CREATE TABLE Matches (
     CONSTRAINT FK_Match_Team1 FOREIGN KEY (Team1ID) REFERENCES NationalTeams(TeamID),
     CONSTRAINT FK_Match_Team2 FOREIGN KEY (Team2ID) REFERENCES NationalTeams(TeamID)
 );
+End;
 
+IF OBJECT_ID('MatchEvents','U') IS NULL 
+Begin
 CREATE TABLE MatchEvents (
     EventID INT IDENTITY(1,1) PRIMARY KEY ,
     PlayerID INT NOT NULL,
@@ -119,7 +152,10 @@ CREATE TABLE MatchEvents (
     CONSTRAINT FK_Event_Player FOREIGN KEY (PlayerID) REFERENCES Players(PlayerID),
     CONSTRAINT FK_Event_Match FOREIGN KEY (MatchID) REFERENCES Matches(MatchID)
 );
+End;
 
+IF OBJECT_ID('TeamStatistics','U') IS NULL 
+Begin
 CREATE TABLE TeamStatistics (
     StatsID INT IDENTITY(1,1) PRIMARY KEY ,
     TeamID INT NOT NULL,
@@ -131,7 +167,10 @@ CREATE TABLE TeamStatistics (
     CONSTRAINT FK_Stats_Team FOREIGN KEY (TeamID) REFERENCES NationalTeams(TeamID),
     CONSTRAINT FK_Stats_Match FOREIGN KEY (MatchID) REFERENCES Matches(MatchID)
 );
+End;
 
+IF OBJECT_ID('MatchOfficials','U') IS NULL 
+Begin
 CREATE TABLE MatchOfficials (
     MatchOfficialID INT IDENTITY(1,1) PRIMARY KEY ,
     OfficialID INT NOT NULL,
@@ -140,9 +179,12 @@ CREATE TABLE MatchOfficials (
     CONSTRAINT FK_MatchOff_Official FOREIGN KEY (OfficialID) REFERENCES Officials(OfficialID),
     CONSTRAINT FK_MatchOff_Match FOREIGN KEY (MatchID) REFERENCES Matches(MatchID)
 );
+End;
  ---------------------------
 
 --Management(Security)--
+IF OBJECT_ID('Admins','U') IS NULL 
+Begin
 CREATE TABLE Admins (
     AdminID INT  IDENTITY(1,1) PRIMARY KEY,
     UserName VARCHAR(50) NOT NULL,
@@ -153,7 +195,10 @@ CREATE TABLE Admins (
     LastLogin DATETIME,
     CONSTRAINT UQ_UserName UNIQUE (UserName)
 );
+End;
 
+IF OBJECT_ID('AdminLogs','U') IS NULL 
+Begin
 CREATE TABLE AdminLogs (
     LogID INT IDENTITY(1,1) PRIMARY KEY ,
     AdminID INT FOREIGN KEY (AdminID) REFERENCES Admins(AdminID) NOT NULL,
@@ -162,9 +207,12 @@ CREATE TABLE AdminLogs (
     ActionTimestamp DATETIME DEFAULT GETDATE(),
     OldValue VARCHAR(MAX),
 );
+End;
  ---------------------------
 
 --SPECTATOR (Fans and Sales)--
+IF OBJECT_ID('Fans','U') IS NULL 
+Begin
 CREATE TABLE Fans (
     FanID INT IDENTITY(1,1) PRIMARY KEY ,
     FirstName NVARCHAR(50) NOT NULL,
@@ -174,7 +222,10 @@ CREATE TABLE Fans (
     CONSTRAINT UQ_Email UNIQUE (Email),
     CONSTRAINT UQ_IDNum UNIQUE (IdentificationNumber)
 );
+End;
 
+IF OBJECT_ID('Bookings','U') IS NULL 
+Begin
 CREATE TABLE Bookings (
     BookingID INT IDENTITY(1,1) PRIMARY KEY ,
     FanID INT NOT NULL,
@@ -183,9 +234,11 @@ CREATE TABLE Bookings (
     BookingStatus VARCHAR(20),
     CONSTRAINT FK_Booking_Fan FOREIGN KEY (FanID) REFERENCES Fans(FanID),
     CONSTRAINT FK_Booking_Match FOREIGN KEY (MatchID) REFERENCES Matches(MatchID),
-
 );
+End;
 
+IF OBJECT_ID('Tickets','U') IS NULL 
+Begin
 CREATE TABLE Tickets (
     TicketID INT IDENTITY(1,1) PRIMARY KEY ,
     BookingID INT NOT NULL,
@@ -199,6 +252,7 @@ CREATE TABLE Tickets (
     CONSTRAINT FK_Ticket_Booking FOREIGN KEY (BookingID) REFERENCES Bookings(BookingID),
     CONSTRAINT FK_Ticket_Category FOREIGN KEY (CategoryID) REFERENCES TicketCategories(CategoryID)
 );
+End;
 ---------------------------
 GO
 --/////////////////////////////////////////////////////////////--
