@@ -1551,7 +1551,7 @@ GO
 
 -- Data encryption implementation
 -- Adds VARBINARY column and encrypts existing identification data
-ALTER TABLE Fans ADD EncryptedIDNumber VARBINARY(256);
+ALTER TABLE Fans ADD EncryptedIDNumber VARBINARY(32);
 GO
 
 OPEN SYMMETRIC KEY FIFA_SymKey
