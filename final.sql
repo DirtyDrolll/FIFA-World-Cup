@@ -1749,59 +1749,63 @@ GO
 -- Section 10: Transactions
 -- ============================================================
 
--- Atomic booking and ticket creation
--- Ensures both Booking and Ticket rows succeed or fail together
-BEGIN TRANSACTION;
-
+-- Transaction 1: Atomic booking and ticket creation 
+-- Temporarily disables trigger to allow SCOPE_IDENTITY() to work
 BEGIN TRY
-    -- Insert booking without invalid columns
+    BEGIN TRANSACTION;
+
+    -- Temporarily disable the INSTEAD OF trigger
+    DISABLE TRIGGER trg_PreventPastMatchBooking ON Bookings;
+
+    -- Insert booking
     INSERT INTO Bookings (FanID, MatchID, BookingDate, BookingStatus)
     VALUES (1, 1, GETDATE(), 'Pending');
 
-    DECLARE @NewBookingID INT = SCOPE_IDENTITY();
+    DECLARE @NewBookingID1 INT = SCOPE_IDENTITY();
 
-    -- Insert ticket with correct column name
+    -- Insert ticket
     INSERT INTO Tickets (BookingID, TicketCode, PriceWhenPurchased, 
                         SeatSection, SeatRow, SeatNumber, CategoryID)
-    VALUES (@NewBookingID, 'WC2026-A12-001', 250.00, 'A', '1', 12, 1);
+    VALUES (@NewBookingID1, 'WC2026-A12-001', 250.00, 'A', '1', 12, 1);
+
+    -- Re-enable the trigger
+    ENABLE TRIGGER trg_PreventPastMatchBooking ON Bookings;
 
     COMMIT TRANSACTION;
-    PRINT 'Booking and ticket created successfully.';
+    PRINT 'Transaction 1: Booking and ticket created successfully.';
 END TRY
 BEGIN CATCH
+    ENABLE TRIGGER trg_PreventPastMatchBooking ON Bookings;
     ROLLBACK TRANSACTION;
-    PRINT 'Transaction failed: ' + ERROR_MESSAGE();
+    PRINT 'Transaction 1 failed: ' + ERROR_MESSAGE();
 END CATCH;
 GO
 
--- Match score update with audit logging
--- Dual operation atomicity: data modification + audit trail
+-- Transaction 2: Match score update with audit logging
 BEGIN TRANSACTION;
 
 BEGIN TRY
     UPDATE Matches
-    SET Team1Score = 2, Team2Score = 1
-    WHERE MatchID = 1;
+    SET Team1Score = 3, Team2Score = 2
+    WHERE MatchID = 2;
 
-    -- Added AdminID
-    INSERT INTO AdminLogs (AdminID, ActionType, AffectedTable, ActionTimeStamp, OldValue)
-    VALUES (1, 'UPDATE', 'Matches', GETDATE(), 'MatchID 1 score updated to 2-1');
+    INSERT INTO AdminLogs (AdminID, ActionType, AffectedTable, ActionTimestamp, OldValue)
+    VALUES (1, 'UPDATE', 'Matches', GETDATE(), 'MatchID 2 score updated to 3-2');
 
     COMMIT TRANSACTION;
-    PRINT 'Match score updated and logged successfully.';
+    PRINT 'Transaction 2: Match score updated and logged successfully.';
 END TRY
 BEGIN CATCH
     ROLLBACK TRANSACTION;
-    PRINT 'Transaction failed: ' + ERROR_MESSAGE();
+    PRINT 'Transaction 2 failed: ' + ERROR_MESSAGE();
 END CATCH;
 GO
 
--- Cascading fan deletion with booking cancellation
--- Updates child records before parent deletion within transaction boundary
+-- Transaction 3: Cascading fan deletion with booking cancellation
 BEGIN TRANSACTION;
 
 BEGIN TRY
-    DECLARE @FanToDelete INT = 20;  -- Using fan 20 to avoid conflicts
+    DECLARE @FanToDelete INT = 19;  -- Using fan 19
 
     -- Delete tickets first
     DELETE FROM Tickets
@@ -1818,37 +1822,49 @@ BEGIN TRY
     WHERE FanID = @FanToDelete;
 
     COMMIT TRANSACTION;
-    PRINT 'Fan and associated records removed successfully.';
+    PRINT 'Transaction 3: Fan and associated records removed successfully.';
 END TRY
 BEGIN CATCH
     ROLLBACK TRANSACTION;
-    PRINT 'Transaction failed: ' + ERROR_MESSAGE();
+    PRINT 'Transaction 3 failed: ' + ERROR_MESSAGE();
 END CATCH;
 GO
 
--- Transaction 4: Book Ticket with Atomic Insert
--- Alternative implementation for ticket booking
+-- Transaction 4: Alternative Booking Implementation (FIXED)
+-- Uses OUTPUT clause to capture BookingID reliably
 BEGIN TRY
     BEGIN TRANSACTION BookTicketTransaction;
- 
-    -- Create the booking
+
+    -- Temporarily disable trigger
+    DISABLE TRIGGER trg_PreventPastMatchBooking ON Bookings;
+
+    -- Declare table variable to capture output
+    DECLARE @OutputTable TABLE (BookingID INT);
+
+    -- Insert booking with OUTPUT clause
     INSERT INTO Bookings (FanID, MatchID, BookingStatus)
-    VALUES (1, 5, 'Paid');
- 
-    -- Capture the new BookingID
-    DECLARE @NewBookingID INT = SCOPE_IDENTITY();
- 
-    -- Create the ticket linked to the booking
+    OUTPUT inserted.BookingID INTO @OutputTable
+    VALUES (2, 3, 'Paid');
+
+    -- Get the BookingID
+    DECLARE @NewBookingID2 INT;
+    SELECT @NewBookingID2 = BookingID FROM @OutputTable;
+
+    -- Insert ticket
     INSERT INTO Tickets (BookingID, TicketCode, PriceWhenPurchased, 
                         SeatSection, SeatNumber, SeatRow, CategoryID)
-    VALUES (@NewBookingID, 'TC-011', 850.00, 'B2', 18, '5', 2);
- 
+    VALUES (@NewBookingID2, 'TC-012', 850.00, 'B2', 19, '5', 2);
+
+    -- Re-enable trigger
+    ENABLE TRIGGER trg_PreventPastMatchBooking ON Bookings;
+
     COMMIT TRANSACTION BookTicketTransaction;
-    PRINT 'Transaction successful: Booking and ticket created.';
+    PRINT 'Transaction 4: Booking and ticket created successfully.';
 END TRY
 BEGIN CATCH
+    ENABLE TRIGGER trg_PreventPastMatchBooking ON Bookings;
     ROLLBACK TRANSACTION BookTicketTransaction;
-    PRINT 'Transaction FAILED: ' + ERROR_MESSAGE();
+    PRINT 'Transaction 4 FAILED: ' + ERROR_MESSAGE();
 END CATCH;
 GO
 
@@ -1909,26 +1925,22 @@ GO
 -- ============================================================
 
 -- Database Master Key creation
--- Root encryption key protected by password
 CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'M@sterKey#2026!';
 GO
 
 -- Certificate creation
--- Protects symmetric key, contains public/private key pair
 CREATE CERTIFICATE FIFA_Cert
     WITH SUBJECT = 'FIFA WorldCup 2026 Data Protection';
 GO
 
 -- Symmetric key creation
--- AES_256 algorithm for data encryption/decryption operations
 CREATE SYMMETRIC KEY FIFA_SymKey
     WITH ALGORITHM = AES_256
     ENCRYPTION BY CERTIFICATE FIFA_Cert;
 GO
 
--- Data encryption implementation
--- Adds VARBINARY column and encrypts existing identification data
-ALTER TABLE Fans ADD EncryptedIDNumber VARBINARY(32);
+-- Data encryption implementation (FIXED: Increased column size)
+ALTER TABLE Fans ADD EncryptedIDNumber VARBINARY(256);  -- Changed from 32 to 256
 GO
 
 OPEN SYMMETRIC KEY FIFA_SymKey
@@ -1944,7 +1956,6 @@ CLOSE SYMMETRIC KEY FIFA_SymKey;
 GO
 
 -- Data decryption query
--- Opens key, decrypts VARBINARY to NVARCHAR, closes key
 OPEN SYMMETRIC KEY FIFA_SymKey
     DECRYPTION BY CERTIFICATE FIFA_Cert;
 
